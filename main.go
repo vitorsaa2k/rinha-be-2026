@@ -9,17 +9,6 @@ import (
 
 var transaction = models.TransactionSctruct{Amount: 12500, Hour: 22, Customer_avg_amount: 4800}
 
-var albums = []models.Album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
-
-func home(c fiber.Ctx) error {
-
-	return c.JSON(albums)
-}
-
 /* func addAlbum(c fiber.Ctx) {
 	var newAlbum album
 	c.BindJSON(&newAlbum)
@@ -47,7 +36,6 @@ func main() {
 	fmt.Println(transaction)
 	fmt.Println(first, second, third) */
 
-	app.Get("/", home)
 	routes.RegisterRoutes(app)
 	app.Listen(":8090")
 
