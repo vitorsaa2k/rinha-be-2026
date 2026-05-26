@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8090:8090"
+    command: go run .
+    cpus: 1
+    mem_limit: 300m
+    develop:
+      watch:
+        - action: sync+restart
+          path: .
+          target: /app
+        - action: rebuild
+          path: go.mod
+        - action: rebuild
+          path: go.sum
