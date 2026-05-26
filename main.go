@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"gin-test/internal/routes"
-	"gin-test/internal/store"
 	"gin-test/models"
-	"gin-test/pkg/utils"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -32,7 +29,7 @@ func home(c fiber.Ctx) error {
 
 func main() {
 	app := fiber.New()
-	first := utils.GetLimit(transaction.Amount, store.Normalizer.Max_amount)
+	/* first := utils.GetLimit(transaction.Amount, store.Normalizer.Max_amount)
 	second := utils.GetLimit(transaction.Hour, store.Normalizer.Max_hour)
 	third := utils.GetLimit(transaction.Customer_avg_amount, store.Normalizer.Max_avg)
 	vector := []float64{first, second, third}
@@ -48,7 +45,7 @@ func main() {
 	}
 	fmt.Println(result)
 	fmt.Println(transaction)
-	fmt.Println(first, second, third)
+	fmt.Println(first, second, third) */
 
 	app.Get("/", home)
 	routes.RegisterRoutes(app)
