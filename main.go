@@ -41,6 +41,6 @@ func main() {
 }
 
 func init() {
-	store.LoadReferencesStreamed(uint32(100000))
+	store.LoadReferencesGziped(100000)
 	store.LoadNormalizer()
 }
