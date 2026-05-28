@@ -2,12 +2,10 @@ package main
 
 import (
 	"gin-test/internal/routes"
-	"gin-test/models"
+	"gin-test/internal/store"
 
 	"github.com/gofiber/fiber/v3"
 )
-
-var transaction = models.TransactionSctruct{Amount: 12500, Hour: 22, Customer_avg_amount: 4800}
 
 /* func addAlbum(c fiber.Ctx) {
 	var newAlbum album
@@ -35,8 +33,14 @@ func main() {
 	fmt.Println(result)
 	fmt.Println(transaction)
 	fmt.Println(first, second, third) */
-
 	routes.RegisterRoutes(app)
-	app.Listen(":8090")
+	app.Listen(":8090", fiber.ListenConfig{
+		DisableStartupMessage: true,
+	})
 
+}
+
+func init() {
+	store.LoadReferencesStreamed(uint32(100000))
+	store.LoadNormalizer()
 }

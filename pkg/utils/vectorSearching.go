@@ -3,26 +3,22 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"gin-test/models"
 	"math"
 )
-
-type DatasetStruct struct {
-	Vector []float64
-	Label  string
-}
 
 type SearchResultStruct struct {
 	IsPossibleFraud bool
 	Number          float64
 }
 
-func SearchInVector(vec []float64, totalDimensions int8, dataset []DatasetStruct) (SearchResultStruct, error) {
+func SearchInVector(vec []float64, totalDimensions int8, dataset []models.DatasetStruct) (SearchResultStruct, error) {
 	var lowest float64
 	var label string
 	for i, v := range dataset {
 		var totalSum float64
 		for j := 0; j < int(totalDimensions); j++ {
-			difference := v.Vector[j] - vec[j]
+			difference := float64(v.Vector[j]) - vec[j]
 			totalSum = totalSum + math.Pow(difference, 2)
 		}
 		finalValue := math.Sqrt(totalSum)

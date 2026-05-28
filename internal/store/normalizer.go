@@ -1,16 +1,25 @@
 package store
 
 import (
+	"encoding/json"
+	"fmt"
 	"gin-test/models"
-	"gin-test/pkg/utils"
+	"os"
+	"path/filepath"
 )
 
-var Dataset = []utils.DatasetStruct{
-	{Vector: []float64{0.0100, 0.0833, 0.05}, Label: "legit"},
-	{Vector: []float64{0.5796, 0.9167, 1.00}, Label: "fraud"},
-	{Vector: []float64{0.0035, 0.1667, 0.05}, Label: "legit"},
-	{Vector: []float64{0.9708, 1.0000, 1.00}, Label: "fraud"},
-	{Vector: []float64{0.4082, 1.0000, 1.00}, Label: "fraud"},
-	{Vector: []float64{0.0092, 0.0833, 0.05}, Label: "legit"},
+var Normalizer models.NormalizerStruct
+
+func LoadNormalizer() models.NormalizerStruct {
+	path := filepath.Join("public", "normalization.json")
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+	}
+	defer file.Close()
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&Normalizer); err != nil {
+		fmt.Println("Error decoding JSON:", err)
+	}
+	return Normalizer
 }
-var Normalizer = models.NormalizerStruct{Max_amount: 10000, Max_hour: 23, Max_avg: 5000}
