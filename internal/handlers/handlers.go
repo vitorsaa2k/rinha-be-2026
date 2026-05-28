@@ -6,6 +6,7 @@ import (
 	"gin-test/models"
 	"gin-test/pkg/utils"
 	"net/http"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -21,51 +22,19 @@ func ApproveTransaction(c fiber.Ctx) error {
 		return err
 	}
 	normalizedTransaction := utils.NormalizeTransaction(transaction)
-	fmt.Println(normalizedTransaction)
-
-	/* transaction := models.ApproveTransactionDTO{}
-	if err := c.Bind().Body(&transaction); err != nil {
-		return err
-	}
-	fmt.Println(transaction)
-	first := utils.GetLimit(transaction.Amount, store.Normalizer.Max_amount)
-	second := utils.GetLimit(transaction.Hour, store.Normalizer.Max_hour)
-	third := utils.GetLimit(transaction.Customer_avg_amount, store.Normalizer.Max_avg)
-	vector := []float64{first, second, third}
-	result, err := utils.SearchInVector(vector, 3, store.Dataset)
+	result, err := utils.SearchInVector(normalizedTransaction[:], 14, store.References)
 	if err != nil {
 		return c.SendStatus(http.StatusInternalServerError)
-	} */
-	/* TODO Add nearest neighboor votes for checking if it is a fraud or not */
-	/* switch result.IsPossibleFraud {
+	}
+	score, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", result.Score), 64)
+	switch result.IsPossibleFraud {
 	case true:
-		return c.JSON(ApproveTransactionResponse{Approved: false, FraudScore: 1})
+		return c.JSON(ApproveTransactionResponse{Approved: false, FraudScore: score})
+	case false:
+		return c.JSON(ApproveTransactionResponse{Approved: true, FraudScore: score})
 	default:
-		return c.JSON(ApproveTransactionResponse{Approved: false, FraudScore: 0})
-	} */
-	return c.JSON(normalizedTransaction)
-}
-
-func LoadJson(c fiber.Ctx) error {
-	/* var references []models.DatasetStruct
-	path := filepath.Join("public", "references.json")
-	file, err := os.Open(path)
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return fiber.NewError(http.StatusInternalServerError, "Internal server error")
+		return c.JSON(ApproveTransactionResponse{Approved: false, FraudScore: score})
 	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&references); err != nil {
-		fmt.Println("Error decoding JSON:", err)
-		return fiber.NewError(http.StatusInternalServerError, "Internal server error")
-	}
-	fmt.Printf("Loaded %d references", len(references)) */
-	/* if len(store.References) < 1 {
-		store.LoadReferencesStreamed()
-	} */
-	return c.JSON(store.References[12])
 }
 
 func Ready(c fiber.Ctx) error {

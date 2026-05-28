@@ -9,5 +9,4 @@ import (
 func RegisterRoutes(app *fiber.App) {
 	app.Get("/ready", handlers.Ready)
 	app.Post("/fraud-score", handlers.ApproveTransaction)
-	app.Get("/references", handlers.LoadJson)
 }
