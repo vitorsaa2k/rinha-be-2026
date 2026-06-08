@@ -1,22 +1,31 @@
 package main
 
 import (
-	"gin-test/internal/routes"
+	"gin-test/internal/handlers"
 	"gin-test/internal/store"
+	"log"
+	"os"
 
-	"github.com/gofiber/fiber/v3"
+	"github.com/valyala/fasthttp"
 )
 
 func main() {
-	app := fiber.New()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "9999"
+	}
+	if err := fasthttp.ListenAndServe(":"+port, handlers.FastHTTPHandler); err != nil {
+		log.Fatalf("Error in ListenAndServe: %s", err)
+	}
+	/* app := fiber.New()
 	routes.RegisterRoutes(app)
-	app.Listen(":8090", fiber.ListenConfig{
+	app.Listen(":9999", fiber.ListenConfig{
 		DisableStartupMessage: true,
-	})
+	}) */
 
 }
 
 func init() {
-	store.LoadReferencesGziped(300000)
+	store.LoadReferencesGziped(10000)
 	store.LoadNormalizer()
 }
