@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"errors"
 	"gin-test/models"
 	"math"
 	"sync"
@@ -21,7 +20,7 @@ type CalculatedDistance struct {
 
 var boundedPool = sync.Pool{
 	New: func() any {
-		return NewBoundedCollection(100)
+		return NewBoundedCollection(10)
 	},
 }
 
@@ -38,24 +37,20 @@ func SearchInVector(vec []float64, totalDimensions int8, dataset []models.Datase
 		finalValue := math.Sqrt(totalSum)
 		boundedClosest.Add(CalculatedDistance{Distance: finalValue, Label: v.Label})
 	}
-	totalFraudsNeighbours := 0
+	totalFraudsNeighbours := 0.0
 	for _, value := range *boundedClosest.heap {
 		if value.Label == "fraud" {
 			totalFraudsNeighbours++
 		}
 	}
 	//fmt.Println("Total fraud neighbours(out of 1000):", totalFraudsNeighbours)
-	score := 0
-	if boundedClosest.heap.Len() < 1 {
-		score = 1
-	} else {
-		score = totalFraudsNeighbours / boundedClosest.heap.Len()
-	}
+	score := 0.0
+	score = totalFraudsNeighbours / 10.0
+
 	//fmt.Println("Score:", score)
-	if float64(score) < THRESHOLD {
-		return SearchResultStruct{IsPossibleFraud: false, Score: float64(score)}, nil
-	} else if float64(score) > THRESHOLD {
-		return SearchResultStruct{IsPossibleFraud: true, Score: float64(score)}, nil
+	if score < THRESHOLD {
+		return SearchResultStruct{IsPossibleFraud: false, Score: score}, nil
+	} else {
+		return SearchResultStruct{IsPossibleFraud: true, Score: score}, nil
 	}
-	return SearchResultStruct{IsPossibleFraud: true, Score: float64(score)}, errors.New("Error when searching in vector")
 }

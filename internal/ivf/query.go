@@ -10,7 +10,7 @@ type ClosestCentroids struct {
 	distance float64
 }
 
-func SearchIVF(normalizedVector []float64, nprobe, k uint8) []models.DatasetStruct {
+func SearchIVF(normalizedVector []float64, k uint8) []models.DatasetStruct {
 	parsedVector := make([]float32, len(normalizedVector))
 	for i, v := range normalizedVector {
 		parsedVector[i] = float32(v)
@@ -21,7 +21,7 @@ func SearchIVF(normalizedVector []float64, nprobe, k uint8) []models.DatasetStru
 		closestCentroids[i].distance = math.MaxFloat64
 	}
 	highestDistanceIndex := 0
-	for _, cluster := range Clusters[:nprobe] {
+	for _, cluster := range Clusters {
 		distance := Distance(cluster.Centroid, parsedVector)
 		for i, c := range closestCentroids {
 			if closestCentroids[highestDistanceIndex].distance < c.distance {

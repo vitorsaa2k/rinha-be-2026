@@ -2,27 +2,26 @@ package main
 
 import (
 	"fmt"
+	"gin-test/internal/handlers"
 	"gin-test/internal/ivf"
-	"gin-test/internal/routes"
 	"gin-test/internal/store"
+	"log"
 	"os"
 
-	"github.com/gofiber/fiber/v3"
+	"github.com/valyala/fasthttp"
 )
 
 func main() {
 	fmt.Println("Building IVF index...")
-	ivf.Clusters = ivf.BuildIVFIndexStreamed(store.References, 512, 1)
+	ivf.Clusters = ivf.BuildIVFIndexStreamed(store.References, 4096, 1)
 	fmt.Println("Initializing Server...")
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "9999"
 	}
-	app := fiber.New()
-	routes.RegisterRoutes(app)
-	app.Listen(":"+port, fiber.ListenConfig{
-		DisableStartupMessage: true,
-	})
+	if err := fasthttp.ListenAndServe(":"+port, handlers.FastHTTPHandler); err != nil {
+		log.Fatalf("Error in ListenAndServe: %s", err)
+	}
 
 }
 
