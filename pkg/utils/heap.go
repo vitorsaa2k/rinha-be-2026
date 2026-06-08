@@ -54,6 +54,10 @@ func (bc *BoundedCollection) Add(val CalculatedDistance) {
 	}
 }
 
+func (bc *BoundedCollection) Reset() {
+	*bc.heap = (*bc.heap)[:0]
+}
+
 func (bc *BoundedCollection) Sorted() []CalculatedDistance {
 	result := append([]CalculatedDistance(nil), (*bc.heap)...)
 

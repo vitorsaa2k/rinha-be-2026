@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"fmt"
-	"gin-test/internal/store"
+	"gin-test/internal/ivf"
 	"gin-test/models"
 	"gin-test/pkg/utils"
+	"math"
 	"net/http"
-	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -22,11 +21,12 @@ func ApproveTransaction(c fiber.Ctx) error {
 		return err
 	}
 	normalizedTransaction := utils.NormalizeTransaction(transaction)
-	result, err := utils.SearchInVector(normalizedTransaction[:], 14, store.References)
+	dataset := ivf.SearchIVF(normalizedTransaction[:], 5, 5)
+	result, err := utils.SearchInVector(normalizedTransaction[:], 14, dataset)
 	if err != nil {
 		return c.SendStatus(http.StatusInternalServerError)
 	}
-	score, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", result.Score), 64)
+	score := math.Round(result.Score*100) / 100
 	switch result.IsPossibleFraud {
 	case true:
 		return c.JSON(ApproveTransactionResponse{Approved: false, FraudScore: score})

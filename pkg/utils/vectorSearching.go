@@ -2,12 +2,12 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"gin-test/models"
 	"math"
+	"sync"
 )
 
-const TRESHOLD = 0.6
+const THRESHOLD = 0.6
 
 type SearchResultStruct struct {
 	IsPossibleFraud bool
@@ -19,23 +19,24 @@ type CalculatedDistance struct {
 	Label    string
 }
 
+var boundedPool = sync.Pool{
+	New: func() any {
+		return NewBoundedCollection(100)
+	},
+}
+
 func SearchInVector(vec []float64, totalDimensions int8, dataset []models.DatasetStruct) (SearchResultStruct, error) {
-	boundedClosest := NewBoundedCollection(1000)
-	var lowest float64
-	for i, v := range dataset {
+	boundedClosest := boundedPool.Get().(*BoundedCollection)
+	defer boundedPool.Put(boundedClosest)
+	boundedClosest.Reset()
+	for _, v := range dataset {
 		var totalSum float64
 		for j := 0; j < int(totalDimensions); j++ {
 			difference := float64(v.Vector[j]) - vec[j]
-			totalSum = totalSum + math.Pow(difference, 2)
+			totalSum += difference * difference
 		}
 		finalValue := math.Sqrt(totalSum)
 		boundedClosest.Add(CalculatedDistance{Distance: finalValue, Label: v.Label})
-		if i == 0 {
-			lowest = finalValue
-		}
-		if finalValue < lowest {
-			lowest = finalValue
-		}
 	}
 	totalFraudsNeighbours := 0
 	for _, value := range *boundedClosest.heap {
@@ -43,13 +44,18 @@ func SearchInVector(vec []float64, totalDimensions int8, dataset []models.Datase
 			totalFraudsNeighbours++
 		}
 	}
-	fmt.Println("Total fraud neighbours(out of 1000):", totalFraudsNeighbours)
-	score := float64(totalFraudsNeighbours) / float64(boundedClosest.heap.Len())
-	fmt.Println("Score:", score)
-	if float64(score) < TRESHOLD {
-		return SearchResultStruct{IsPossibleFraud: false, Score: score}, nil
-	} else if float64(score) > TRESHOLD {
-		return SearchResultStruct{IsPossibleFraud: true, Score: score}, nil
+	//fmt.Println("Total fraud neighbours(out of 1000):", totalFraudsNeighbours)
+	score := 0
+	if boundedClosest.heap.Len() < 1 {
+		score = 1
+	} else {
+		score = totalFraudsNeighbours / boundedClosest.heap.Len()
 	}
-	return SearchResultStruct{IsPossibleFraud: true, Score: score}, errors.New("Error when searching in vector")
+	//fmt.Println("Score:", score)
+	if float64(score) < THRESHOLD {
+		return SearchResultStruct{IsPossibleFraud: false, Score: float64(score)}, nil
+	} else if float64(score) > THRESHOLD {
+		return SearchResultStruct{IsPossibleFraud: true, Score: float64(score)}, nil
+	}
+	return SearchResultStruct{IsPossibleFraud: true, Score: float64(score)}, errors.New("Error when searching in vector")
 }
