@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"gin-test/internal/ivf"
 	"gin-test/models"
 	"gin-test/pkg/utils"
+
+	"github.com/goccy/go-json"
 
 	"github.com/valyala/fasthttp"
 )

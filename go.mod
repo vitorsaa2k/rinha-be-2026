@@ -2,7 +2,10 @@ module gin-test
 
 go 1.26.3
 
-require github.com/valyala/fasthttp v1.71.0
+require (
+	github.com/goccy/go-json v0.10.6
+	github.com/valyala/fasthttp v1.71.0
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.1 // indirect
