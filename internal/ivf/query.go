@@ -17,17 +17,16 @@ var boundedPool = sync.Pool{
 	},
 }
 
-func SearchIVF(normalizedVector []float64, k uint8) []ClosestCentroids {
+func SearchIVF(normalizedVector []float32, k uint8) []ClosestCentroids {
 	boundedClosest := boundedPool.Get().(*BoundedCollection)
 	defer boundedPool.Put(boundedClosest)
 	boundedClosest.Reset()
-	parsedVector := make([]float32, len(normalizedVector))
-	for i, v := range normalizedVector {
-		parsedVector[i] = float32(v)
-	}
 	for _, cluster := range Clusters {
-		distance := Distance(cluster.Centroid, parsedVector)
+		distance := Distance(cluster.Centroid, normalizedVector)
 		boundedClosest.Add(ClosestCentroids{Cluster: cluster, Distance: distance})
 	}
-	return *boundedClosest.heap
+	/* for _, c := range *boundedClosest.heap {
+		fmt.Println(c)
+	} */
+	return []ClosestCentroids{(*boundedClosest.heap)[HEAP_SIZE-1]}
 }

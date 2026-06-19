@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-func NormalizeTransaction(transaction models.ApproveTransactionDTO) [14]float64 {
-	var transactionVector [14]float64
+func NormalizeTransaction(transaction models.ApproveTransactionDTO) [14]float32 {
+	var transactionVector [14]float32
 	transactionTime, err := time.Parse(time.RFC3339, transaction.Transaction.RequestedAt)
 	if err != nil {
 		panic(err)
@@ -55,7 +55,7 @@ func NormalizeTransaction(transaction models.ApproveTransactionDTO) [14]float64 
 	/* default value is 0.5 */
 	transactionVector[12] = 0.5
 	if mcc, ok := store.MccMap[transaction.Merchant.Mcc]; ok {
-		transactionVector[12] = mcc
+		transactionVector[12] = float32(mcc)
 	}
 
 	transactionVector[13] = GetLimit(transaction.Merchant.AvgAmount, float64(store.Normalizer.MaxMerchantAvgAmount))

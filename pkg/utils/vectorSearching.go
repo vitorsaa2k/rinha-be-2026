@@ -14,7 +14,7 @@ type SearchResultStruct struct {
 }
 
 type CalculatedDistance struct {
-	Distance float64
+	Distance float32
 	Label    string
 }
 
@@ -24,15 +24,15 @@ var boundedPool = sync.Pool{
 	},
 }
 
-func SearchInVector(vec []float64, totalDimensions int8, closestCentroids []ivf.ClosestCentroids) (SearchResultStruct, error) {
+func SearchInVector(vec []float32, totalDimensions int8, closestCentroids []ivf.ClosestCentroids) (SearchResultStruct, error) {
 	boundedClosest := boundedPool.Get().(*BoundedCollection)
 	defer boundedPool.Put(boundedClosest)
 	boundedClosest.Reset()
 	for _, c := range closestCentroids {
 		for _, v := range c.Cluster.Lists {
-			var totalSum float64
+			var totalSum float32
 			for j := 0; j < int(totalDimensions); j++ {
-				difference := float64(v.Vector[j]) - vec[j]
+				difference := float32(v.Vector[j]) - vec[j]
 				totalSum += difference * difference
 			}
 			boundedClosest.Add(CalculatedDistance{Distance: totalSum, Label: v.Label})
