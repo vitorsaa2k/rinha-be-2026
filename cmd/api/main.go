@@ -12,8 +12,20 @@ import (
 )
 
 func main() {
-	fmt.Println("Building IVF index...")
-	ivf.Clusters = ivf.BuildIVFIndexStreamed(store.References, 4096, 1)
+	indexPath := os.Getenv("INDEX_PATH")
+	if indexPath == "" {
+
+		indexPath = "../../public/out.bin"
+	}
+
+	if _, err := os.Stat(indexPath); err == nil {
+		if _, err := ivf.LoadIndexFromFile(indexPath); err != nil {
+			log.Fatalf("Failed to load index: %v", err)
+		}
+	} else {
+		fmt.Println("WARN: index file not found, running without index")
+	}
+
 	fmt.Println("Initializing Server...")
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -22,11 +34,10 @@ func main() {
 	if err := fasthttp.ListenAndServe(":"+port, handlers.FastHTTPHandler); err != nil {
 		log.Fatalf("Error in ListenAndServe: %s", err)
 	}
-
 }
 
 func init() {
-	fmt.Println("Loading references")
-	store.LoadReferencesGziped(10000)
+	fmt.Println("Loading normalizer and MCC risk")
 	store.LoadNormalizer()
+	store.LoadMccRisk()
 }

@@ -1,16 +1,15 @@
 package ivf
 
 import (
-	"compress/gzip"
-	"encoding/json"
 	"fmt"
-	"gin-test/internal/store"
 	"gin-test/models"
 	"math"
 	"math/rand"
-	"os"
-	"path/filepath"
-	"time"
+)
+
+const (
+	SampleSize = 65536
+	MaxIters   = 6
 )
 
 type Cluster struct {
@@ -20,139 +19,117 @@ type Cluster struct {
 
 var Clusters = []Cluster{}
 
-func BuildIVFIndex(data []models.DatasetStruct, k int, maxIterations uint8) []Cluster {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	clusters := make([]Cluster, k)
-	perm := r.Perm(len(data))
-	for i := range k {
-		clusters[i].Centroid = data[perm[i]].Vector
-	}
-	for intr := range maxIterations {
-		fmt.Println("Iteration number:", intr+1)
-		// Reset references
-		for i := range clusters {
-			clusters[i].Lists = nil
-		}
+// TrainKMeans runs k-means++ on a random 65K sample and returns K centroids.
+func TrainKMeans(data []models.DatasetStruct, k int) []Cluster {
+	rng := rand.New(rand.NewSource(0xCAFEBABE))
 
-		for _, reference := range data {
-			bestIndex := 0
-			minDist := math.MaxFloat64
-			for i, cluster := range clusters {
-				dist := Distance(cluster.Centroid, reference.Vector)
-				if dist < minDist {
-					minDist = dist
-					bestIndex = i
+	sample := drawSample(data, SampleSize, rng)
+
+	centroids := make([]Cluster, k)
+	for i := range centroids {
+		centroids[i].Centroid = make([]float32, dims)
+	}
+
+	initKMeansPlusPlus(sample, centroids, rng)
+
+	for iter := 0; iter < MaxIters; iter++ {
+		fmt.Println("K-means iteration:", iter+1)
+
+		counts := make([]uint32, k)
+		sums := make([][14]float64, k)
+
+		for _, v := range sample {
+			best := 0
+			bestD := math.MaxFloat64
+			for c, cl := range centroids {
+				d := Distance(cl.Centroid, v.Vector)
+				if d < bestD {
+					bestD = d
+					best = c
 				}
 			}
-			clusters[bestIndex].Lists = append(clusters[bestIndex].Lists, reference)
+			for dim := 0; dim < dims; dim++ {
+				sums[best][dim] += float64(v.Vector[dim])
+			}
+			counts[best]++
 		}
 
-		converged := true
-		for i := range clusters {
-			if len(clusters[i].Lists) == 0 {
+		for c := 0; c < k; c++ {
+			if counts[c] == 0 {
 				continue
 			}
-			//Compute dimensional averages
-			newCentroid := make([]float32, 14)
-			for _, reference := range clusters[i].Lists {
-				for dim := range reference.Vector {
-					newCentroid[dim] += reference.Vector[dim]
-				}
+			for dim := 0; dim < dims; dim++ {
+				centroids[c].Centroid[dim] = float32(sums[c][dim] / float64(counts[c]))
 			}
-			for dim := range newCentroid {
-				newCentroid[dim] /= float32(len(clusters[i].Lists))
-			}
-			if Distance(clusters[i].Centroid, newCentroid) > 1e-4 {
-				converged = false
-			}
-			clusters[i].Centroid = newCentroid
-		}
-		if converged {
-			break
 		}
 	}
-	store.References = nil
-	return clusters
+
+	return centroids
 }
 
-func BuildIVFIndexStreamed(data []models.DatasetStruct, k int, maxIterations uint8) []Cluster {
-
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	clusters := make([]Cluster, k)
-	perm := r.Perm(len(data))
-	for i := range k {
-		clusters[i].Centroid = data[perm[i]].Vector
+func drawSample(data []models.DatasetStruct, n int, rng *rand.Rand) []models.DatasetStruct {
+	if n > len(data) {
+		n = len(data)
 	}
-
-	for intr := range maxIterations {
-		path := filepath.Join("public", "references.json.gz")
-		f, _ := os.Open(path)
-		gr, _ := gzip.NewReader(f)
-
-		decoder := json.NewDecoder(gr)
-		t, err := decoder.Token()
-		if err != nil {
-			fmt.Println("Error reading token:", err)
-			return []Cluster{}
+	picked := make(map[int]struct{}, n)
+	sample := make([]models.DatasetStruct, n)
+	for i := 0; i < n; i++ {
+		var id int
+		for {
+			id = rng.Intn(len(data))
+			if _, dup := picked[id]; !dup {
+				break
+			}
 		}
-
-		if delim, ok := t.(json.Delim); !ok || delim != '[' {
-			fmt.Println("Expected JSON array start '['")
-			return []Cluster{}
-		}
-
-		fmt.Println("Iteration number:", intr+1)
-		// Reset references
-		for i := range clusters {
-			clusters[i].Lists = nil
-		}
-
-		for decoder.More() {
-			var reference models.DatasetStruct
-			if err := decoder.Decode(&reference); err != nil {
-				fmt.Println("Error decoding obj:", err)
-				continue
-			}
-			bestIndex := 0
-			minDist := math.MaxFloat64
-			for i, cluster := range clusters {
-				dist := Distance(cluster.Centroid, reference.Vector)
-				if dist < minDist {
-					minDist = dist
-					bestIndex = i
-				}
-			}
-			clusters[bestIndex].Lists = append(clusters[bestIndex].Lists, reference)
-		}
-
-		converged := true
-		for i := range clusters {
-			if len(clusters[i].Lists) == 0 {
-				continue
-			}
-			//Compute dimensional averages
-			newCentroid := make([]float32, 14)
-			for _, reference := range clusters[i].Lists {
-				for dim := range reference.Vector {
-					newCentroid[dim] += reference.Vector[dim]
-				}
-			}
-			for dim := range newCentroid {
-				newCentroid[dim] /= float32(len(clusters[i].Lists))
-			}
-			if Distance(clusters[i].Centroid, newCentroid) > 1e-4 {
-				converged = false
-			}
-			clusters[i].Centroid = newCentroid
-		}
-		gr.Close()
-		f.Close()
-		if converged {
-			break
+		picked[id] = struct{}{}
+		vec := make([]float32, dims)
+		copy(vec, data[id].Vector)
+		sample[i] = models.DatasetStruct{
+			Vector: vec,
+			Label:  data[id].Label,
 		}
 	}
-	store.References = nil
-	return clusters
+	return sample
+}
+
+func initKMeansPlusPlus(sample []models.DatasetStruct, centroids []Cluster, rng *rand.Rand) {
+	n := len(sample)
+	first := rng.Intn(n)
+	copy(centroids[0].Centroid, sample[first].Vector)
+
+	d2 := make([]float64, n)
+	for i, v := range sample {
+		d2[i] = SquaredDistance(centroids[0].Centroid, v.Vector)
+	}
+
+	for c := 1; c < len(centroids); c++ {
+		total := 0.0
+		for _, d := range d2 {
+			total += d
+		}
+		if total <= 0 {
+			pick := rng.Intn(n)
+			copy(centroids[c].Centroid, sample[pick].Vector)
+			continue
+		}
+		r := rng.Float64() * total
+		acc := 0.0
+		pick := n - 1
+		for i, d := range d2 {
+			acc += d
+			if acc >= r {
+				pick = i
+				break
+			}
+		}
+		copy(centroids[c].Centroid, sample[pick].Vector)
+		for i, v := range sample {
+			d := SquaredDistance(centroids[c].Centroid, v.Vector)
+			if d < d2[i] {
+				d2[i] = d
+			}
+		}
+	}
 }
 
 func Distance(p1, p2 []float32) float64 {

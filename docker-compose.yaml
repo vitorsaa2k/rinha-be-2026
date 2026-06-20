@@ -2,16 +2,9 @@ services:
   app:
     build: .
     ports:
-      - "8090:8090"
-    command: go run .
+      - "9999:9999"
     cpus: 1
-    mem_limit: 300m
-    develop:
-      watch:
-        - action: sync+restart
-          path: .
-          target: /app
-        - action: rebuild
-          path: go.mod
-        - action: rebuild
-          path: go.sum
+    mem_limit: 159m
+    environment:
+      - PORT=9999
+      - INDEX_PATH=/app/resources/index.bin

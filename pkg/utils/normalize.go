@@ -20,7 +20,7 @@ func NormalizeTransaction(transaction models.ApproveTransactionDTO) [14]float32 
 	transactionVector[3] = GetLimit(float64(transactionTime.Hour()), float64(23))
 	transactionVector[4] = GetLimit(float64(int(transactionTime.Weekday())-1), float64(6))
 
-	if transaction.LastTransaction == nil {
+	if transaction.LastTransaction == nil || transaction.LastTransaction.Timestamp == "" || transaction.LastTransaction.KmFromCurrent == 0 {
 		transactionVector[5] = -1
 		transactionVector[6] = -1
 	} else {
