@@ -38,24 +38,15 @@ func SearchInVector(vec []float32, totalDimensions int8, closestCentroids []ivf.
 			boundedClosest.Add(CalculatedDistance{Distance: totalSum, Label: v.Label})
 		}
 	}
-	totalWeight := 0.0
-	fraudWeight := 0.0
 	totalFraudCount := 0.0
 	for _, value := range *boundedClosest.heap {
-		weight := 1.0 / (float64(value.Distance) + 1e-6)
-		totalWeight += weight
 		if value.Label == "fraud" {
-			fraudWeight += weight
 			totalFraudCount++
 		}
 	}
 	//fmt.Println("Total fraud neighbours(out of 1000):", totalFraudsNeighbours)
 	score := 0.0
-	if totalWeight == 0 {
-		return SearchResultStruct{IsPossibleFraud: false, Score: score}, nil
-	}
 	score = totalFraudCount / HEAP_SIZE
-
 	//fmt.Println("Score:", score)
 	if score < THRESHOLD {
 		return SearchResultStruct{IsPossibleFraud: false, Score: score}, nil
