@@ -14,13 +14,21 @@ func NormalizeTransaction(transaction models.ApproveTransactionDTO) [14]float32 
 	if err != nil {
 		panic(err)
 	}
+	dayOfTheWeek := int(transactionTime.Weekday() - 1)
+	if dayOfTheWeek == -1 {
+		dayOfTheWeek = 6
+	}
 	transactionVector[0] = GetLimit(transaction.Transaction.Amount, float64(store.Normalizer.MaxAmount))
 	transactionVector[1] = GetLimit(float64(transaction.Transaction.Installments), float64(store.Normalizer.MaxInstallments))
-	transactionVector[2] = GetLimit(float64(transaction.Transaction.Amount/transaction.Customer.AvgAmount), float64(store.Normalizer.AmountVsAvgRatio))
+	if transaction.Customer.AvgAmount > 0 {
+		transactionVector[2] = GetLimit(float64(transaction.Transaction.Amount/transaction.Customer.AvgAmount), float64(store.Normalizer.AmountVsAvgRatio))
+	} else {
+		transactionVector[2] = 0
+	}
 	transactionVector[3] = GetLimit(float64(transactionTime.Hour()), float64(23))
-	transactionVector[4] = GetLimit(float64(int(transactionTime.Weekday())-1), float64(6))
+	transactionVector[4] = GetLimit(float64(dayOfTheWeek), float64(6))
 
-	if transaction.LastTransaction == nil || transaction.LastTransaction.Timestamp == "" || transaction.LastTransaction.KmFromCurrent == 0 {
+	if transaction.LastTransaction == nil || transaction.LastTransaction.Timestamp == "" {
 		transactionVector[5] = -1
 		transactionVector[6] = -1
 	} else {
