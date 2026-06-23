@@ -15,7 +15,7 @@ func main() {
 	indexPath := os.Getenv("INDEX_PATH")
 	if indexPath == "" {
 
-		indexPath = "../../public/out.bin"
+		indexPath = "public/out.bin"
 	}
 
 	if _, err := os.Stat(indexPath); err == nil {

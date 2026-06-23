@@ -21,7 +21,7 @@ var MccMap = map[string]float64{
 	"5999": 0.50}
 
 func LoadMccRisk() models.NormalizerStruct {
-	path := filepath.Join("../", "../", "public", "mcc_risk.json")
+	path := filepath.Join("public", "mcc_risk.json")
 	file, err := os.Open(path)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
