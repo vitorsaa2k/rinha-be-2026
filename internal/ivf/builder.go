@@ -12,12 +12,20 @@ const (
 	MaxIters   = 6
 )
 
+const QuantScale = 10000
+
 type Cluster struct {
 	Centroid []float32
 	Lists    []models.DatasetStruct
 }
 
+type QuantizedCluster struct {
+	Centroid []int16
+	Lists    []models.QuantizedData
+}
+
 var Clusters = []Cluster{}
+var QuantizedClusters = []QuantizedCluster{}
 
 // TrainKMeans runs k-means++ on a random 65K sample and returns K centroids.
 func TrainKMeans(data []models.DatasetStruct, k int) []Cluster {
@@ -146,6 +154,15 @@ func SquaredDistance(p1, p2 []float32) float64 {
 	for i := range p1 {
 		diff := p1[i] - p2[i]
 		sum += float64(diff) * float64(diff)
+	}
+	return sum
+}
+
+func QuantizedDistance(a, b []int16) uint64 {
+	var sum uint64
+	for i := range a {
+		diff := int64(a[i]) - int64(b[i])
+		sum += uint64(diff * diff)
 	}
 	return sum
 }

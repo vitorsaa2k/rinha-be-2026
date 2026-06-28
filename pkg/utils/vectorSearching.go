@@ -14,8 +14,8 @@ type SearchResultStruct struct {
 }
 
 type CalculatedDistance struct {
-	Distance float32
-	Label    string
+	Distance uint64
+	Label    uint8
 }
 
 var boundedPool = sync.Pool{
@@ -24,30 +24,28 @@ var boundedPool = sync.Pool{
 	},
 }
 
-func SearchInVector(vec []float32, totalDimensions int8, closestCentroids []ivf.ClosestCentroids) (SearchResultStruct, error) {
+func SearchInVector(vec []int16, totalDimensions int8, closestCentroids []ivf.QuantizedClosestCentroids) (SearchResultStruct, error) {
 	boundedClosest := boundedPool.Get().(*BoundedCollection)
 	defer boundedPool.Put(boundedClosest)
 	boundedClosest.Reset()
 	for _, c := range closestCentroids {
 		for _, v := range c.Cluster.Lists {
-			var totalSum float32
+			var totalSum uint64
 			for j := 0; j < int(totalDimensions); j++ {
-				difference := float32(v.Vector[j]) - vec[j]
-				totalSum += difference * difference
+				diff := int64(v.Vector[j]) - int64(vec[j])
+				totalSum += uint64(diff * diff)
 			}
 			boundedClosest.Add(CalculatedDistance{Distance: totalSum, Label: v.Label})
 		}
 	}
 	totalFraudCount := 0.0
 	for _, value := range *boundedClosest.heap {
-		if value.Label == "fraud" {
+		if value.Label == 1 {
 			totalFraudCount++
 		}
 	}
-	//fmt.Println("Total fraud neighbours(out of 1000):", totalFraudsNeighbours)
 	score := 0.0
 	score = totalFraudCount / HEAP_SIZE
-	//fmt.Println("Score:", score)
 	if score < THRESHOLD {
 		return SearchResultStruct{IsPossibleFraud: false, Score: score}, nil
 	} else {

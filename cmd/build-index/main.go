@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,21 @@ func main() {
 	info, _ := os.Stat(out)
 	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
 		info.Size(), float64(info.Size())/(1<<20), out, time.Since(t3))
+
+	t4 := time.Now()
+	quantIdx := ivf.QuantizeIVFIndex(idx)
+	var quantOut string
+	if strings.HasSuffix(out, ".bin") {
+		quantOut = out[:len(out)-4] + "_quantized.bin"
+	} else {
+		quantOut = out + "_quantized.bin"
+	}
+	if err := quantIdx.SerializeToFile(quantOut); err != nil {
+		log.Fatalf("save quantized: %v", err)
+	}
+	quantInfo, _ := os.Stat(quantOut)
+	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
+		quantInfo.Size(), float64(quantInfo.Size())/(1<<20), quantOut, time.Since(t4))
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)

@@ -64,3 +64,8 @@ type DatasetStruct struct {
 	Vector []float32 `json:"vector"`
 	Label  string    `json:"label"`
 }
+
+type QuantizedData struct {
+	Vector []int16
+	Label  uint8
+}

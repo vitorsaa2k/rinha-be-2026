@@ -71,8 +71,9 @@ func FastHTTPHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		normalizedTransaction := utils.NormalizeTransaction(transaction)
-		closestCentroids := ivf.SearchIVF(normalizedTransaction[:], 5)
-		result, err := utils.SearchInVector(normalizedTransaction[:], 14, closestCentroids)
+		quantizedQuery := ivf.QuantizeQuery(normalizedTransaction[:])
+		closestCentroids := ivf.SearchIVFQuantized(quantizedQuery, 5)
+		result, err := utils.SearchInVector(quantizedQuery, 14, closestCentroids)
 		if err != nil {
 			ctx.Error("Error when searching in vector", fasthttp.StatusBadRequest)
 			return

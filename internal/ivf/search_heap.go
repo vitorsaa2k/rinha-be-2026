@@ -3,7 +3,10 @@ package ivf
 import (
 	"container/heap"
 	"slices"
+	"sync"
 )
+
+// Float32 heap (for float32 Cluster search)
 
 type DatasetHeap []ClosestCentroids
 
@@ -73,4 +76,84 @@ func (bc *BoundedCollection) Sorted() []ClosestCentroids {
 	})
 
 	return result
+}
+
+// ---------------------------------------------------------------------------
+// Quantized heap (for uint16 QuantizedCluster search)
+// ---------------------------------------------------------------------------
+
+type QuantizedDatasetHeap []QuantizedClosestCentroids
+
+func (h QuantizedDatasetHeap) Len() int {
+	return len(h)
+}
+
+func (h QuantizedDatasetHeap) Less(i, j int) bool {
+	return h[i].Distance > h[j].Distance
+}
+
+func (h QuantizedDatasetHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *QuantizedDatasetHeap) Push(x any) {
+	*h = append(*h, x.(QuantizedClosestCentroids))
+}
+
+func (h *QuantizedDatasetHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
+type QuantizedBoundedCollection struct {
+	heap     *QuantizedDatasetHeap
+	capacity int
+}
+
+func NewQuantizedBoundedCollection(capacity int) *QuantizedBoundedCollection {
+	h := &QuantizedDatasetHeap{}
+	heap.Init(h)
+	return &QuantizedBoundedCollection{heap: h, capacity: capacity}
+}
+
+func (bc *QuantizedBoundedCollection) Add(val QuantizedClosestCentroids) {
+	if bc.heap.Len() < bc.capacity {
+		heap.Push(bc.heap, val)
+		return
+	}
+
+	if val.Distance < (*bc.heap)[0].Distance {
+		(*bc.heap)[0] = val
+		heap.Fix(bc.heap, 0)
+	}
+}
+
+func (bc *QuantizedBoundedCollection) Reset() {
+	*bc.heap = (*bc.heap)[:0]
+}
+
+func (bc *QuantizedBoundedCollection) Sorted() []QuantizedClosestCentroids {
+	result := append([]QuantizedClosestCentroids(nil), (*bc.heap)...)
+
+	slices.SortFunc(result, func(a, b QuantizedClosestCentroids) int {
+		switch {
+		case a.Distance > b.Distance:
+			return -1
+		case a.Distance < b.Distance:
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	return result
+}
+
+var quantizedBoundedPool = sync.Pool{
+	New: func() any {
+		return NewQuantizedBoundedCollection(HEAP_SIZE)
+	},
 }

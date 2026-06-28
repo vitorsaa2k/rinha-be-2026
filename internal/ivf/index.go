@@ -305,3 +305,194 @@ func computeVectorsToCentroidsMultiThread(assign *[]uint32, data []models.Datase
 	}
 	wg.Wait()
 }
+
+// ---------------------------------------------------------------------------
+// Quantized index (int16, fixed scale QuantScale = 10000)
+// ---------------------------------------------------------------------------
+
+const (
+	quantizedMagic      = "IVFQ"
+	quantizedVersion    = uint32(2)
+	quantizedHeaderSize = 16 // magic(4) + version(4) + K(4) + N(4)
+)
+
+type IVFQuantizedIndex struct {
+	K uint32
+	N uint32
+
+	Centroids []int16  // K * dims
+	Offsets   []uint32 // K + 1
+	Vectors   []int16  // N * dims
+	Labels    []uint8  // N
+}
+
+func QuantizeFloat32(v float32) int16 {
+	s := v * QuantScale
+	if s >= QuantScale {
+		return QuantScale
+	}
+	if s <= -QuantScale {
+		return -QuantScale
+	}
+	if s >= 0 {
+		return int16(s + 0.5)
+	}
+	return int16(s - 0.5)
+}
+
+func QuantizeIVFIndex(idx *IVFIndex) *IVFQuantizedIndex {
+	q := &IVFQuantizedIndex{
+		K:         idx.K,
+		N:         idx.N,
+		Centroids: make([]int16, len(idx.Centroids)),
+		Offsets:   make([]uint32, len(idx.Offsets)),
+		Vectors:   make([]int16, len(idx.Vectors)),
+		Labels:    make([]uint8, len(idx.Labels)),
+	}
+	copy(q.Offsets, idx.Offsets)
+	copy(q.Labels, idx.Labels)
+
+	for i, v := range idx.Centroids {
+		q.Centroids[i] = QuantizeFloat32(v)
+	}
+	for i, v := range idx.Vectors {
+		q.Vectors[i] = QuantizeFloat32(v)
+	}
+	return q
+}
+
+func (idx *IVFQuantizedIndex) Serialize(w io.Writer) error {
+	header := make([]byte, quantizedHeaderSize)
+	copy(header[0:magicLen], quantizedMagic)
+	binary.LittleEndian.PutUint32(header[4:8], quantizedVersion)
+	binary.LittleEndian.PutUint32(header[8:12], idx.K)
+	binary.LittleEndian.PutUint32(header[12:16], idx.N)
+	if _, err := w.Write(header); err != nil {
+		return err
+	}
+	if err := writeInt16Slice(w, idx.Centroids); err != nil {
+		return err
+	}
+	if err := writeUint32Slice(w, idx.Offsets); err != nil {
+		return err
+	}
+	if err := writeInt16Slice(w, idx.Vectors); err != nil {
+		return err
+	}
+	if _, err := w.Write(idx.Labels); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (idx *IVFQuantizedIndex) SerializeToFile(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return idx.Serialize(f)
+}
+
+func LoadQuantized(r io.Reader) (*IVFQuantizedIndex, error) {
+	header := make([]byte, quantizedHeaderSize)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return nil, fmt.Errorf("read header: %w", err)
+	}
+	if string(header[0:magicLen]) != quantizedMagic {
+		return nil, fmt.Errorf("bad magic: %q", header[0:magicLen])
+	}
+	if v := binary.LittleEndian.Uint32(header[4:8]); v != quantizedVersion {
+		return nil, fmt.Errorf("bad version: %d (want %d)", v, quantizedVersion)
+	}
+	idx := &IVFQuantizedIndex{
+		K: binary.LittleEndian.Uint32(header[8:12]),
+		N: binary.LittleEndian.Uint32(header[12:16]),
+	}
+	centroidsLen := int(idx.K) * dims
+	idx.Centroids = make([]int16, centroidsLen)
+	if err := readInt16Slice(r, idx.Centroids); err != nil {
+		return nil, fmt.Errorf("read centroids: %w", err)
+	}
+	idx.Offsets = make([]uint32, int(idx.K)+1)
+	if err := readUint32Slice(r, idx.Offsets); err != nil {
+		return nil, fmt.Errorf("read offsets: %w", err)
+	}
+	vectorsLen := int(idx.N) * dims
+	idx.Vectors = make([]int16, vectorsLen)
+	if err := readInt16Slice(r, idx.Vectors); err != nil {
+		return nil, fmt.Errorf("read vectors: %w", err)
+	}
+	idx.Labels = make([]uint8, idx.N)
+	if _, err := io.ReadFull(r, idx.Labels); err != nil {
+		return nil, fmt.Errorf("read labels: %w", err)
+	}
+	return idx, nil
+}
+
+func LoadQuantizedFromFile(path string) (*IVFQuantizedIndex, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return LoadQuantized(f)
+}
+
+func (idx *IVFQuantizedIndex) ToQuantizedClusters() []QuantizedCluster {
+	clusters := make([]QuantizedCluster, idx.K)
+	for c := range clusters {
+		centroidStart := c * dims
+		clusters[c].Centroid = make([]int16, dims)
+		copy(clusters[c].Centroid, idx.Centroids[centroidStart:centroidStart+dims])
+		start := idx.Offsets[c]
+		end := idx.Offsets[c+1]
+		count := int(end - start)
+		clusters[c].Lists = make([]models.QuantizedData, count)
+		for i := 0; i < count; i++ {
+			globalIdx := int(start) + i
+			vecStart := globalIdx * dims
+			vec := make([]int16, dims)
+			copy(vec, idx.Vectors[vecStart:vecStart+dims])
+			clusters[c].Lists[i] = models.QuantizedData{
+				Vector: vec,
+				Label:  idx.Labels[globalIdx],
+			}
+		}
+	}
+	return clusters
+}
+
+func (idx *IVFQuantizedIndex) SizeOnDisk() int {
+	return quantizedHeaderSize +
+		len(idx.Centroids)*2 +
+		len(idx.Offsets)*4 +
+		len(idx.Vectors)*2 +
+		len(idx.Labels)
+}
+
+func writeInt16Slice(w io.Writer, s []int16) error {
+	b := make([]byte, 2*len(s))
+	for i, v := range s {
+		binary.LittleEndian.PutUint16(b[2*i:2*i+2], uint16(v))
+	}
+	if len(b) == 0 {
+		return nil
+	}
+	_, err := w.Write(b)
+	return err
+}
+
+func readInt16Slice(r io.Reader, s []int16) error {
+	b := make([]byte, 2*len(s))
+	if len(b) == 0 {
+		return nil
+	}
+	if _, err := io.ReadFull(r, b); err != nil {
+		return err
+	}
+	for i := range s {
+		s[i] = int16(binary.LittleEndian.Uint16(b[2*i : 2*i+2]))
+	}
+	return nil
+}
