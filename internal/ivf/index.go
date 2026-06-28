@@ -7,14 +7,16 @@ import (
 	"io"
 	"math"
 	"os"
+	"runtime"
+	"sync"
 )
 
 const (
-	magic       = "IVF1"
-	version     = uint32(1)
-	dims        = 14
-	magicLen    = 4
-	headerSize  = 16 // magic(4) + version(4) + K(4) + N(4)
+	magic      = "IVF1"
+	version    = uint32(1)
+	dims       = 14
+	magicLen   = 4
+	headerSize = 16 // magic(4) + version(4) + K(4) + N(4)
 )
 
 // IVFIndex is the serializable representation of the IVF index.
@@ -22,10 +24,10 @@ type IVFIndex struct {
 	K uint32 // number of clusters
 	N uint32 // total vectors
 
-	Centroids    []float32   // K * dims flat array
-	Offsets      []uint32    // K+1 offsets into Vectors/Labels arrays
-	Vectors      []float32   // N * dims flat array, grouped by cluster
-	Labels       []uint8     // N bytes, 0=legit 1=fraud
+	Centroids []float32 // K * dims flat array
+	Offsets   []uint32  // K+1 offsets into Vectors/Labels arrays
+	Vectors   []float32 // N * dims flat array, grouped by cluster
+	Labels    []uint8   // N bytes, 0=legit 1=fraud
 }
 
 // Serialize writes the index to w in binary format.
@@ -145,17 +147,21 @@ func BuildIndex(data []models.DatasetStruct, centroids []Cluster) *IVFIndex {
 	n := uint32(len(data))
 
 	assign := make([]uint32, n)
-	for i, v := range data {
-		best := 0
-		bestD := float64(-1)
-		for c, cl := range centroids {
-			d := SquaredDistance(cl.Centroid, v.Vector)
-			if bestD < 0 || d < bestD {
-				bestD = d
-				best = c
+	if totalCpus := runtime.NumCPU(); totalCpus > 4 {
+		computeVectorsToCentroidsMultiThread(&assign, data, centroids, 4)
+	} else {
+		for i, v := range data {
+			best := 0
+			bestD := float64(-1)
+			for c, cl := range centroids {
+				d := SquaredDistance(cl.Centroid, v.Vector)
+				if bestD < 0 || d < bestD {
+					bestD = d
+					best = c
+				}
 			}
+			assign[i] = uint32(best)
 		}
-		assign[i] = uint32(best)
 	}
 
 	idx := &IVFIndex{
@@ -265,3 +271,37 @@ func readUint32Slice(r io.Reader, s []uint32) error {
 	return nil
 }
 
+func computeVectorsToCentroidsMultiThread(assign *[]uint32, data []models.DatasetStruct, centroids []Cluster, threads int) {
+	n := len(data)
+	var wg sync.WaitGroup
+	numWorkers := threads
+	chunkSize := (int(n) + numWorkers - 1) / numWorkers
+
+	for w := range numWorkers {
+		start := w * chunkSize
+		end := start + chunkSize
+		if start >= int(n) {
+			break
+		}
+		if end > int(n) {
+			end = int(n)
+		}
+		wg.Add(1)
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				best := 0
+				bestD := float64(-1)
+				for centIdx, centroid := range centroids {
+					d := SquaredDistance(centroid.Centroid, data[i].Vector[:])
+					if bestD < 0 || d < bestD {
+						bestD = d
+						best = centIdx
+					}
+				}
+				(*assign)[i] = uint32(best)
+			}
+		}(start, end)
+	}
+	wg.Wait()
+}
