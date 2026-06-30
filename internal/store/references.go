@@ -12,7 +12,7 @@ func LoadReferencesGziped(maxReferences uint32) int8 {
 	return LoadReferencesGzipedPath("public/references.json.gz", maxReferences)
 }
 
-var References = []models.DatasetStruct{}
+var References []models.DatasetStruct
 
 func LoadReferencesGzipedPath(path string, maxReferences uint32) int8 {
 	f, _ := os.Open(path)

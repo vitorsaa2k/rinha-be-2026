@@ -145,7 +145,6 @@ func (idx *IVFIndex) ToClusters() []Cluster {
 func BuildIndex(data []models.DatasetStruct, centroids []Cluster) *IVFIndex {
 	k := uint32(len(centroids))
 	n := uint32(len(data))
-
 	assign := make([]uint32, n)
 	if totalCpus := runtime.NumCPU(); totalCpus > 4 {
 		computeVectorsToCentroidsMultiThread(&assign, data, centroids, 4)

@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"gin-test/internal/ivf"
-	"gin-test/internal/store"
 	"log"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -16,10 +14,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: build-index <references.json.gz> <out.bin>")
 		os.Exit(2)
 	}
-	in, out := os.Args[1], os.Args[2]
-
+	in := os.Args[1]
 	t0 := time.Now()
-	store.LoadReferencesGzipedPath(in, 3000000)
+	ivf.WritePartitions(in, 4)
+
+	/* t0 := time.Now()
+	store.LoadReferencesGzipedPath(in, 600000)
 	data := store.References
 	log.Printf("load: %d vectors in %s", len(data), time.Since(t0))
 
@@ -53,7 +53,7 @@ func main() {
 	}
 	quantInfo, _ := os.Stat(quantOut)
 	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
-		quantInfo.Size(), float64(quantInfo.Size())/(1<<20), quantOut, time.Since(t4))
+		quantInfo.Size(), float64(quantInfo.Size())/(1<<20), quantOut, time.Since(t4)) */
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
