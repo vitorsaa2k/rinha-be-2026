@@ -28,7 +28,6 @@ func WritePartitions(in string, maxPartitions uint8) {
 		fmt.Println(store.References[0])
 		centroids := TrainKMeans(store.References, int(centroidsPerPartition))
 		idx := BuildIndex(store.References, centroids)
-		// TODO make it quantize the index and write/save the quantized instead of the not quantized
 		t3 := time.Now()
 		if err := idx.SerializeToFile(partitionOutPath); err != nil {
 			log.Fatalf("save: %v", err)
@@ -38,6 +37,60 @@ func WritePartitions(in string, maxPartitions uint8) {
 			info.Size(), float64(info.Size())/(1<<20), partitionOutPath, time.Since(t3))
 		idx = nil
 		store.References = nil
+		debug.FreeOSMemory()
+	}
+}
+
+func WriteQuantizedPartitionsFromIdxFiles() {
+	files, err := os.ReadDir("./partitions")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i, file := range files {
+		if !file.IsDir() {
+			fmt.Println(file.Name())
+			//TODO make it load only the files that are NOT part of the quantized index
+			partitionPath := "./partitions/" + file.Name()
+			if _, err := os.Stat(partitionPath); err == nil {
+				idx, err := LoadIndexFromFile(partitionPath)
+				if err != nil {
+					log.Fatalf("Failed to load index: %v", err)
+				}
+				quantOut := "./partitions/quant/idxQuantized_" + strconv.Itoa(int(i)) + ".bin"
+				quantIdx := QuantizeIVFIndex(idx)
+				fmt.Println(quantIdx.Vectors[200+i], i)
+				if err := quantIdx.SerializeToFile(quantOut); err != nil {
+					log.Fatalf("save quantized: %v", err)
+				}
+			} else {
+				fmt.Println("WARN: index file not found, running without index")
+			}
+		}
+		debug.FreeOSMemory()
+	}
+}
+
+func LoadQuantizedPartitions() {
+	files, err := os.ReadDir("./partitions/quant")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, file := range files {
+		if !file.IsDir() {
+			fmt.Println(file.Name())
+			partitionPath := "./partitions/quant/" + file.Name()
+			if _, err := os.Stat(partitionPath); err == nil {
+				if _, err := LoadQuantizedIndexFromFile(partitionPath); err != nil {
+					log.Fatalf("Failed to load index: %v", err)
+				}
+			} else {
+				fmt.Println("WARN: index file not found, running without index")
+			}
+			for _, c := range QuantizedClusters {
+				GlobalQuantizedClusters = append(GlobalQuantizedClusters, c)
+			}
+		}
+		QuantizedClusters = nil
 		debug.FreeOSMemory()
 	}
 }

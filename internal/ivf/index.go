@@ -454,7 +454,7 @@ func (idx *IVFQuantizedIndex) ToQuantizedClusters() []QuantizedCluster {
 			vec := make([]int16, dims)
 			copy(vec, idx.Vectors[vecStart:vecStart+dims])
 			clusters[c].Lists[i] = models.QuantizedData{
-				Vector: vec,
+				Vector: [14]int16(vec),
 				Label:  idx.Labels[globalIdx],
 			}
 		}

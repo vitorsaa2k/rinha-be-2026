@@ -66,6 +66,6 @@ type DatasetStruct struct {
 }
 
 type QuantizedData struct {
-	Vector []int16
+	Vector [14]int16
 	Label  uint8
 }

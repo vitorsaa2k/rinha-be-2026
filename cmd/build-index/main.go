@@ -17,44 +17,45 @@ func main() {
 	in := os.Args[1]
 	t0 := time.Now()
 	ivf.WritePartitions(in, 4)
+	ivf.WriteQuantizedPartitionsFromIdxFiles()
 
-	/* t0 := time.Now()
-	store.LoadReferencesGzipedPath(in, 600000)
-	data := store.References
-	log.Printf("load: %d vectors in %s", len(data), time.Since(t0))
+	/* 	t0 := time.Now()
+	   	store.LoadReferencesGzipedPath(in, 3000000)
+	   	data := store.References
+	   	log.Printf("load: %d vectors in %s", len(data), time.Since(t0))
 
-	t1 := time.Now()
-	centroids := ivf.TrainKMeans(data, 4096)
-	log.Printf("train: k=%d sample=%d iters=%d in %s",
-		4096, ivf.SampleSize, ivf.MaxIters, time.Since(t1))
+	   	t1 := time.Now()
+	   	centroids := ivf.TrainKMeans(data, 4096)
+	   	log.Printf("train: k=%d sample=%d iters=%d in %s",
+	   		4096, ivf.SampleSize, ivf.MaxIters, time.Since(t1))
 
-	t2 := time.Now()
-	idx := ivf.BuildIndex(data, centroids)
-	log.Printf("build: %d vectors in %s", idx.N, time.Since(t2))
+	   	t2 := time.Now()
+	   	idx := ivf.BuildIndex(data, centroids)
+	   	log.Printf("build: %d vectors in %s", idx.N, time.Since(t2))
 
-	t3 := time.Now()
-	if err := idx.SerializeToFile(out); err != nil {
-		log.Fatalf("save: %v", err)
-	}
-	info, _ := os.Stat(out)
-	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
-		info.Size(), float64(info.Size())/(1<<20), out, time.Since(t3))
+	   	t3 := time.Now()
+	   	if err := idx.SerializeToFile(out); err != nil {
+	   		log.Fatalf("save: %v", err)
+	   	}
+	   	info, _ := os.Stat(out)
+	   	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
+	   		info.Size(), float64(info.Size())/(1<<20), out, time.Since(t3))
 
-	t4 := time.Now()
-	quantIdx := ivf.QuantizeIVFIndex(idx)
-	var quantOut string
-	if strings.HasSuffix(out, ".bin") {
-		quantOut = out[:len(out)-4] + "_quantized.bin"
-	} else {
-		quantOut = out + "_quantized.bin"
-	}
-	if err := quantIdx.SerializeToFile(quantOut); err != nil {
-		log.Fatalf("save quantized: %v", err)
-	}
-	quantInfo, _ := os.Stat(quantOut)
-	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
-		quantInfo.Size(), float64(quantInfo.Size())/(1<<20), quantOut, time.Since(t4)) */
-
+	   	t4 := time.Now()
+	   	quantIdx := ivf.QuantizeIVFIndex(idx)
+	   	var quantOut string
+	   	if strings.HasSuffix(out, ".bin") {
+	   		quantOut = out[:len(out)-4] + "_quantized.bin"
+	   	} else {
+	   		quantOut = out + "_quantized.bin"
+	   	}
+	   	if err := quantIdx.SerializeToFile(quantOut); err != nil {
+	   		log.Fatalf("save quantized: %v", err)
+	   	}
+	   	quantInfo, _ := os.Stat(quantOut)
+	   	log.Printf("saved %d bytes (%.1f MB) to %s in %s",
+	   		quantInfo.Size(), float64(quantInfo.Size())/(1<<20), quantOut, time.Since(t4))
+	*/
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	log.Printf("heap inuse %.1f MB, alloc total %.1f MB",

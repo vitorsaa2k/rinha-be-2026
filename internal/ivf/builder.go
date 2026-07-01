@@ -25,8 +25,9 @@ type QuantizedCluster struct {
 }
 
 var Clusters = []Cluster{}
-var QuantizedClusters []QuantizedCluster
 var GlobalClusters []Cluster
+var QuantizedClusters []QuantizedCluster
+var GlobalQuantizedClusters []QuantizedCluster
 
 // TrainKMeans runs k-means++ on a random 65K sample and returns K centroids.
 func TrainKMeans(data []models.DatasetStruct, k int) []Cluster {
