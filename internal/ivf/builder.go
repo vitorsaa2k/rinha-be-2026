@@ -168,3 +168,12 @@ func QuantizedDistance(a, b []int16) uint64 {
 	}
 	return sum
 }
+
+func QuantizedDistanceNoAlloc(a []int16, b [14]int16) uint64 {
+	var sum uint64
+	for i := range a {
+		diff := int64(a[i]) - int64(b[i])
+		sum += uint64(diff * diff)
+	}
+	return sum
+}

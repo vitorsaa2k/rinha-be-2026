@@ -35,7 +35,7 @@ var boundedPoolQuantized = sync.Pool{
 	},
 }
 
-func SearchInVectorQuantized(vec []int16, totalDimensions int8, closestCentroids []ivf.QuantizedClosestCentroids) (SearchResultStruct, error) {
+func SearchInVectorQuantized(vec [14]int16, totalDimensions int8, closestCentroids []ivf.QuantizedClosestCentroids) (SearchResultStruct, error) {
 	boundedClosest := boundedPool.Get().(*BoundedCollectionQuantized)
 	defer boundedPool.Put(boundedClosest)
 	boundedClosest.Reset()
