@@ -15,6 +15,13 @@ type ApproveTransactionResponse struct {
 	FraudScore float64 `json:"fraud_score"`
 }
 
+var ResponseRefuse1, _ = json.Marshal(ApproveTransactionResponse{Approved: false, FraudScore: 1})
+var ResponseRefuse08, _ = json.Marshal(ApproveTransactionResponse{Approved: false, FraudScore: 0.8})
+var ResponseRefuse06, _ = json.Marshal(ApproveTransactionResponse{Approved: false, FraudScore: 0.6})
+var ResponseApproved0, _ = json.Marshal(ApproveTransactionResponse{Approved: true, FraudScore: 0})
+var ResponseApproved02, _ = json.Marshal(ApproveTransactionResponse{Approved: true, FraudScore: 0.2})
+var ResponseApproved04, _ = json.Marshal(ApproveTransactionResponse{Approved: true, FraudScore: 0.4})
+
 /* func ApproveTransaction(c fiber.Ctx) error {
 	transaction := models.ApproveTransactionDTO{}
 	if err := c.Bind().Body(&transaction); err != nil {
@@ -63,7 +70,6 @@ func FastHTTPHandler(ctx *fasthttp.RequestCtx) {
 
 	case "/fraud-score":
 		transaction := models.ApproveTransactionDTO{}
-		response := ApproveTransactionResponse{Approved: false, FraudScore: 1}
 		err := json.Unmarshal(ctx.Request.Body(), &transaction)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -71,30 +77,30 @@ func FastHTTPHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		normalizedTransaction := utils.NormalizeTransaction(transaction)
-		closestCentroids := ivf.SearchIVF(normalizedTransaction[:], 5)
-		//quantizedQuery := ivf.QuantizeQuery(normalizedTransaction[:])
-		//closestCentroids := ivf.SearchIVFQuantized(quantizedQuery, 5)
-		//result, err := utils.SearchInVectorQuantized(quantizedQuery, 14, closestCentroids)
-		result, err := utils.SearchInVector(normalizedTransaction[:], 14, closestCentroids)
+		//closestCentroids := ivf.SearchIVF(normalizedTransaction[:], 5)
+		quantizedQuery := ivf.QuantizeQuery(normalizedTransaction)
+		closestCentroids := ivf.SearchIVFQuantized(quantizedQuery, 5)
+		result, err := utils.SearchInVectorQuantized(quantizedQuery, 14, closestCentroids)
+		//result, err := utils.SearchInVector(normalizedTransaction[:], 14, closestCentroids)
 		if err != nil {
 			ctx.Error("Error when searching in vector", fasthttp.StatusBadRequest)
 			return
 		}
-		if result.IsPossibleFraud {
-			ctx.SetContentType("application/json")
-			ctx.SetStatusCode(fasthttp.StatusOK)
-			response = ApproveTransactionResponse{Approved: false, FraudScore: result.Score}
-			if err := json.NewEncoder(ctx).Encode(response); err != nil {
-				ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
-			}
-		} else {
-			ctx.SetContentType("application/json")
-			ctx.SetStatusCode(fasthttp.StatusOK)
-			response = ApproveTransactionResponse{Approved: true, FraudScore: result.Score}
-			if err := json.NewEncoder(ctx).Encode(response); err != nil {
-				ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
-			}
-
+		ctx.SetContentType("application/json")
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		switch result.Score {
+		case 0:
+			ctx.SetBody(ResponseApproved0)
+		case 0.2:
+			ctx.SetBody(ResponseApproved02)
+		case 0.4:
+			ctx.SetBody(ResponseApproved04)
+		case 0.6:
+			ctx.SetBody(ResponseRefuse06)
+		case 0.8:
+			ctx.SetBody(ResponseRefuse08)
+		default:
+			ctx.SetBody(ResponseRefuse1)
 		}
 
 	default:

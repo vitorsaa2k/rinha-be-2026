@@ -7,6 +7,7 @@ import (
 	"gin-test/internal/store"
 	"log"
 	"os"
+	"runtime/debug"
 
 	"github.com/valyala/fasthttp"
 )
@@ -39,4 +40,5 @@ func init() {
 	fmt.Println("Loading normalizer and MCC risk")
 	store.LoadNormalizer()
 	store.LoadMccRisk()
+	debug.SetMemoryLimit(1 * 1024 * 1024 * 140)
 }

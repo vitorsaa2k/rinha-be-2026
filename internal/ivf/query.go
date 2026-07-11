@@ -39,14 +39,14 @@ func SearchIVFQuantized(query []int16, k uint8) []QuantizedClosestCentroids {
 	boundedClosest := quantizedBoundedPool.Get().(*QuantizedBoundedCollection)
 	defer quantizedBoundedPool.Put(boundedClosest)
 	boundedClosest.Reset()
-	for _, cluster := range QuantizedClusters {
+	for _, cluster := range GlobalQuantizedClusters {
 		distance := QuantizedDistance(cluster.Centroid, query)
 		boundedClosest.Add(QuantizedClosestCentroids{Cluster: cluster, Distance: distance})
 	}
 	return *boundedClosest.heap
 }
 
-func QuantizeQuery(normalized []float32) []int16 {
+func QuantizeQuery(normalized [14]float32) []int16 {
 	out := make([]int16, dims)
 	for i, v := range normalized {
 		out[i] = QuantizeFloat32(v)
