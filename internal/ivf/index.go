@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"unsafe"
 )
 
 const (
@@ -438,36 +439,56 @@ func LoadQuantizedFromFile(path string) (*IVFQuantizedIndex, error) {
 	return LoadQuantized(f)
 }
 
-func (idx *IVFQuantizedIndex) ToQuantizedClusters() []QuantizedCluster {
-	clusters := make([]QuantizedCluster, idx.K)
-	for c := range clusters {
-		centroidStart := c * dims
-		clusters[c].Centroid = make([]int16, dims)
-		copy(clusters[c].Centroid, idx.Centroids[centroidStart:centroidStart+dims])
-		start := idx.Offsets[c]
-		end := idx.Offsets[c+1]
-		count := int(end - start)
-		clusters[c].Lists = make([]models.QuantizedData, count)
-		for i := 0; i < count; i++ {
-			globalIdx := int(start) + i
-			vecStart := globalIdx * dims
-			vec := make([]int16, dims)
-			copy(vec, idx.Vectors[vecStart:vecStart+dims])
-			clusters[c].Lists[i] = models.QuantizedData{
-				Vector: [14]int16(vec),
-				Label:  idx.Labels[globalIdx],
-			}
-		}
-	}
-	return clusters
-}
-
 func (idx *IVFQuantizedIndex) SizeOnDisk() int {
 	return quantizedHeaderSize +
 		len(idx.Centroids)*2 +
 		len(idx.Offsets)*4 +
 		len(idx.Vectors)*2 +
 		len(idx.Labels)
+}
+
+func quantizedFileOffsets(K, N uint32) (offC, offO, offV, offL, totalSize int64) {
+	offC = quantizedHeaderSize
+	offO = offC + int64(K)*int64(dims)*2
+	offV = offO + int64(K+1)*4
+	offL = offV + int64(N)*int64(dims)*2
+	totalSize = offL + int64(N)
+	return
+}
+
+func LoadQuantizedMMap(path string) (*QuantizedPartition, error) {
+	data, h, err := mmapFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if string(data[:magicLen]) != quantizedMagic {
+		munmapFile(data, h)
+		return nil, fmt.Errorf("bad magic: %q", data[:magicLen])
+	}
+	if v := binary.LittleEndian.Uint32(data[4:8]); v != quantizedVersion {
+		munmapFile(data, h)
+		return nil, fmt.Errorf("bad version: %d (want %d)", v, quantizedVersion)
+	}
+
+	K := binary.LittleEndian.Uint32(data[8:12])
+	N := binary.LittleEndian.Uint32(data[12:16])
+	offC, offO, offV, offL, expectedSize := quantizedFileOffsets(K, N)
+
+	if int64(len(data)) != expectedSize {
+		munmapFile(data, h)
+		return nil, fmt.Errorf("file size mismatch: %d (expected %d)", len(data), expectedSize)
+	}
+
+	idx := &IVFQuantizedIndex{
+		K: K,
+		N: N,
+		Centroids: unsafe.Slice((*int16)(unsafe.Pointer(&data[offC])), int(K)*dims),
+		Offsets:   unsafe.Slice((*uint32)(unsafe.Pointer(&data[offO])), int(K)+1),
+		Vectors:   unsafe.Slice((*int16)(unsafe.Pointer(&data[offV])), int(N)*dims),
+		Labels:    data[offL : offL+int64(N)],
+	}
+	return &QuantizedPartition{IVFQuantizedIndex: *idx, mmapData: data, mmapFile: h}, nil
 }
 
 func writeInt16Slice(w io.Writer, s []int16) error {

@@ -19,15 +19,15 @@ type Cluster struct {
 	Lists    []models.DatasetStruct
 }
 
-type QuantizedCluster struct {
-	Centroid []int16
-	Lists    []models.QuantizedData
+type QuantizedPartition struct {
+	IVFQuantizedIndex
+	mmapData []byte
+	mmapFile uintptr
 }
 
 var Clusters = []Cluster{}
 var GlobalClusters []Cluster
-var QuantizedClusters []QuantizedCluster
-var GlobalQuantizedClusters []QuantizedCluster
+var GlobalPartitions []*QuantizedPartition
 
 // TrainKMeans runs k-means++ on a random 65K sample and returns K centroids.
 func TrainKMeans(data []models.DatasetStruct, k int) []Cluster {
@@ -170,6 +170,15 @@ func QuantizedDistance(a, b []int16) uint64 {
 }
 
 func QuantizedDistanceNoAlloc(a []int16, b [14]int16) uint64 {
+	var sum uint64
+	for i := range a {
+		diff := int64(a[i]) - int64(b[i])
+		sum += uint64(diff * diff)
+	}
+	return sum
+}
+
+func QuantizedDistanceArr(a *[14]int16, b []int16) uint64 {
 	var sum uint64
 	for i := range a {
 		diff := int64(a[i]) - int64(b[i])

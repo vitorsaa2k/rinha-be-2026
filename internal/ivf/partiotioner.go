@@ -75,24 +75,33 @@ func LoadQuantizedPartitions() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	GlobalPartitions = make([]*QuantizedPartition, 0, len(files))
+
 	for _, file := range files {
-		if !file.IsDir() {
-			fmt.Println(file.Name())
-			partitionPath := "./partitions/quant/" + file.Name()
-			if _, err := os.Stat(partitionPath); err == nil {
-				if _, err := LoadQuantizedIndexFromFile(partitionPath); err != nil {
-					log.Fatalf("Failed to load index: %v", err)
-				}
-			} else {
-				fmt.Println("WARN: index file not found, running without index")
-			}
-			for _, c := range QuantizedClusters {
-				GlobalQuantizedClusters = append(GlobalQuantizedClusters, c)
-			}
+		if file.IsDir() {
+			continue
 		}
-		QuantizedClusters = nil
-		debug.FreeOSMemory()
+		partitionPath := "./partitions/quant/" + file.Name()
+		p, err := LoadQuantizedMMap(partitionPath)
+		if err != nil {
+			log.Fatalf("Failed to load %s: %v", partitionPath, err)
+		}
+		log.Printf("Partition loaded: K=%d N=%d (%.1f MB)", p.K, p.N,
+			float64(len(p.mmapData))/(1<<20))
+		GlobalPartitions = append(GlobalPartitions, p)
 	}
+
+	log.Printf("Total partitions: %d, total clusters: %d",
+		len(GlobalPartitions), totalClusterCount())
+}
+
+func totalClusterCount() int {
+	n := 0
+	for _, p := range GlobalPartitions {
+		n += int(p.K)
+	}
+	return n
 }
 
 func LoadPartitions() {
