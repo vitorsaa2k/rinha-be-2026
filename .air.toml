@@ -1,5 +1,3 @@
-#:schema https://json.schemastore.org/any.json
-
 env_files = []
 root = "."
 testdata_dir = "testdata"
@@ -8,7 +6,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   bin = "./tmp/main"
-  cmd = "go build -o ./tmp/main ."
+  cmd = "go build -o ./tmp/main ./cmd/api"
   delay = 1000
   entrypoint = ["./tmp/main"]
   exclude_dir = ["assets", "tmp", "vendor", "testdata"]
@@ -35,7 +33,7 @@ tmp_dir = "tmp"
   [build.windows]
     args_bin = []
     bin = "tmp\\main.exe"
-    cmd = "go build -o ./tmp/main.exe ."
+    cmd = "go build -o ./tmp/main.exe ./cmd/api"
     entrypoint = ["tmp\\main.exe"]
     full_bin = ""
     post_cmd = []
@@ -64,5 +62,5 @@ tmp_dir = "tmp"
   proxy_port = 0
 
 [screen]
-  clear_on_rebuild = false
+  clear_on_rebuild = true
   keep_scroll = true
